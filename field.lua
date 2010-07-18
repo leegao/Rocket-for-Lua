@@ -294,6 +294,31 @@ model.ForeignKey = Field:new{
 			self[this]:save()
 		end
 	end,
+	on_create = function(self, this)
+		local object = self.to
+		if type(object) == "string" then
+			if object:sub(#object-4) ~= "_model" then
+				object = object.."_model"
+			end
+		elseif type(object) == "table" then
+			object = object.model_name
+		end
+		print(self.super.model_name)
+		local defer
+		if not model.static[object] then
+			defer = true
+		end
+		if not defer then
+			model.static[object].static.foreign[this] = self.super
+		else
+			if not model.defered[object] then
+				model.defered[object] = {}
+			end
+			table.insert(model.defered[object], function(Model)
+				Model.static.foreign[this] = self.super
+			end)
+		end
+	end,
 
 	sql = function(self, field)
 		local sql = self.field_name .. " INTEGER"

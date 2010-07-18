@@ -6,12 +6,12 @@ env = sql()
 
 con = assert (env:connect("test.db"))
 
-model = {static = {}}
+model = {static = {}, defered = {}}
 
 function model.Model(self, fields)
 	if not fields.id then fields.id = model.AutoField{pk = true} end
 	if not fields[1] then error "Model must be named" end
-	local Model = {static = {}, on = {}, model_name = fields[1].."_model"}
+	local Model = {static={foreign = {}}, on = {}, model_name = fields[1].."_model"}
 	local mt = {}
 
 	table.remove(fields, 1)
@@ -313,6 +313,17 @@ function model.Model(self, fields)
 	rawset(Model, "fields", fields)
 	Model:sync_db()
 
+	for field,val in pairs(fields) do
+		if val.on_create then
+			val:on_create(field)
+		end
+	end
+
+	if model.defered[Model.model_name] then
+		for _,f in ipairs(model.defered[Model.model_name]) do f(Model) end
+	end
+
+	model.defered[Model.model_name] = nil
 	model.static[Model.model_name] = Model
 	return Model
 end
@@ -354,3 +365,5 @@ print(q2())
 
 q3 = Person.objects.all():where{band = Band.objects.get{band_name = "lee's band"}}
 print(q3())
+
+print(dump(Band.static.foreign))
