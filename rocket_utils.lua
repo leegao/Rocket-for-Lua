@@ -75,3 +75,7 @@ function list_iter (t)
 		if i <= n then return t[i] end
 	end
 end
+
+function tostring_(_,obj)
+	return tostring(obj)
+end

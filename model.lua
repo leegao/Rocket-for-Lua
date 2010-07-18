@@ -22,7 +22,7 @@ function model.Model(self, fields)
 		for field, value in pairs(args) do
 			if fields[field] then
 				if type(value) == "string" and fields[field].deserialize then
-					value = fields[field].deserialize(value)
+					value = fields[field]:deserialize(value)
 					args[field] = value
 				end
 				local validate =  fields[field](value)
@@ -69,7 +69,7 @@ function model.Model(self, fields)
 			end
 			for field, validator in pairs(fields) do
 				if validator.on_save then
-					validator.on_save(self)
+					validator.on_save(self, field)
 				end
 
 				if not validator.null then
@@ -89,7 +89,7 @@ function model.Model(self, fields)
 			local objectstack = {}
 			for field,object in pairs(self.all) do
 				if fields[field].serialize then
-					object = fields[field].serialize(object)
+					object = fields[field]:serialize(object)
 				else
 					object = tostring(object)
 				end
@@ -118,7 +118,6 @@ function model.Model(self, fields)
 			--Make sure self exists
 			if self.id then
 				local sql = "DELETE FROM %s WHERE id=%s"%{self.super.model_name, self.id}
-				print(sql)
 				assert(con:execute(sql))
 			end
 
@@ -147,6 +146,7 @@ function model.Model(self, fields)
 				end
 			end
 			local sql = string.format("CREATE TABLE %s (%s);", self.model_name, table.concat(stack, ", "))
+			print(sql)
 			assert(con:execute(sql))
 		end
 	end
@@ -193,7 +193,7 @@ function model.Model(self, fields)
 			sql = sql .. " OFFSET %s"
 			table.insert(stack, self._offset)
 		end
-		print(sql%stack)
+		--print(sql%stack)
 		local cur = con:execute(sql%stack)
 		local results = {}
 		local row = cur:fetch({},"a")
@@ -202,7 +202,7 @@ function model.Model(self, fields)
 			row = cur:fetch({},"a")
 		end
 		results.iter = list_iter
-		setmetatable(results, {__tostring=dump})
+		setmetatable(results, {__tostring=function(list) return "{"..(string.rep(", %s",#list)%list):sub(3).."}" end})
 		return results
 	end
 
@@ -215,10 +215,10 @@ function model.Model(self, fields)
 		self.select = "*"
 		self.table = Model.model_name
 
-		function self.where(self, args)
+		function self.where(self,  _args)
 			if not self._where then self._where = {} end
 			local where
-			for field,expr in pairs(args) do
+			for field,expr in pairs(_args) do
 				where = {}
 				local s = field:split("__")
 				field = s[1]
@@ -228,7 +228,7 @@ function model.Model(self, fields)
 					if val(expr) then
 						if #flags == 0 then
 							where.exact = true
-							where.obj = (val.serialize or tostring)(expr)
+							where.obj = (val.serialize or tostring_)(val, expr)
 						else
 							local flag = flags[1]
 							if flag == "startswith" then
@@ -246,7 +246,7 @@ function model.Model(self, fields)
 							elseif flag == "le" then
 								where.flag = "<="
 							end
-							where.obj = (val.serialize or tostring)(expr)
+							where.obj = (val.serialize or tostring)(val, expr)
 						end
 
 					else
@@ -284,6 +284,12 @@ function model.Model(self, fields)
 		end
 		setmetatable(self, qmt)
 		return self
+	end
+
+
+	function Model.objects.get(_args)
+		local result = Model.objects.all():where(_args):limit(1)
+		return result()[1]
 	end
 
 	function mt.__newindex(self, key, val)
@@ -332,10 +338,19 @@ Band = model{
 function Band.on_string(self)
 	return "<Band: %s>"%(self.band_name or self.id or "NaN")
 end
-b = Band{band_name = "lee's band"}
-p = Person{name = "lee",band=b}
-print(p.band)
---~ q = Band.objects.all():order_by{id="+"}()
---~ for o in q:iter() do
---~ 	print(o)
---~ end
+--b = Band{band_name = "WTF"}
+--b = Band.objects.get{band_name="lee's band"}
+--p = Person{name = "wtf2",band=b}
+--p:save()
+--print(dump(model.static))
+--p2 = Person{id=1,name="lee",band="1"}
+--print(p2.band)
+q = Person.objects.all()
+
+print(q())
+
+q2 = Band.objects.all()
+print(q2())
+
+q3 = Person.objects.all():where{band = Band.objects.get{band_name = "lee's band"}}
+print(q3())

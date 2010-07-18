@@ -66,7 +66,7 @@ local Field = {
 					if field.default then promises[name] = field.default end
 				end
 			end
-
+			--print(dump(promises))
 			return promise.field(promises)
 		end
 		function mt.__index(self, key)
@@ -104,7 +104,7 @@ model.IntegerField = Field:new{
 	promise = promise.type("int"),
 	default = promise.type("int"),
 
-	deserialize = function(object)
+	deserialize = function(self,object)
 		return tonumber(object)
 	end,
 
@@ -136,7 +136,7 @@ model.CharField = Field:new{
 	end,
 	max_length = promise.type("int", 50),
 
-	serialize = function(object)
+	serialize = function(self,object)
 		return '"'..object:gsub('"','\\"')..'"'
 	end,
 
@@ -149,7 +149,7 @@ model.CharField = Field:new{
 			sql = sql .. " NOT NULL"
 		end
 		if self.default then
-			sql = sql .. " DEFAULT " .. self.serialize(self.default)
+			sql = sql .. " DEFAULT " .. self:serialize(self.default)
 		end
 		return sql
 	end
@@ -160,7 +160,7 @@ model.AutoField = Field:new{
 	pk 		= promise.type("boolean", false),
 	promise = promise.type("int"),
 
-	deserialize = function(object)
+	deserialize = function(self,object)
 		return tonumber(object)
 	end,
 
@@ -188,14 +188,14 @@ model.BooleanField = Field:new{
 	promise = promise.type("boolean"),
 	default = promise.type("boolean"),
 
-	serialize = function(object)
+	serialize = function(self,object)
 		if object == true then
 			return "TRUE"
 		elseif object == false then
 			return "FALSE"
 		end
 	end,
-	deserialize = function(object)
+	deserialize = function(self,object)
 		if object:lower() == "true" then return true else return false end
 	end,
 
@@ -208,7 +208,7 @@ model.BooleanField = Field:new{
 			sql = sql .. " NOT NULL"
 		end
 		if self.default then
-			sql = sql .. " DEFAULT " .. self.serialize(self.default)
+			sql = sql .. " DEFAULT " .. self:serialize(self.default)
 		end
 		return sql
 	end
@@ -226,10 +226,10 @@ model.CommaSeparatedIntegerField = Field:new{
 		end
 		return result
 	end,
-	serialize = function(object)
+	serialize = function(self,object)
 		return table.concat(object, ";")
 	end,
-	deserialize = function(str)
+	deserialize = function(self,str)
 		local stack = {}
 		for w in string.gmatch(str, "[^;]+") do table.insert(stack, w) end
 		return stack
@@ -244,7 +244,7 @@ model.CommaSeparatedIntegerField = Field:new{
 			sql = sql .. " NOT NULL"
 		end
 		if self.default then
-			sql = sql .. " DEFAULT " .. self.serialize(self.default)
+			sql = sql .. " DEFAULT " .. self:serialize(self.default)
 		end
 		return sql
 	end
@@ -268,20 +268,32 @@ model.ForeignKey = Field:new{
 			end
 		end
 
-		if type(object) ~= "table" then
-			return nil
-		end
+		if type(object) ~= "table" then return nil end
+		if not object.super then return nil end
+
 		if object.super.model_name ~= promises.to.model_name then
 			return nil
 		end
 		return object
 	end,
 
-	on_save = function(self)
-		if not self.to.id then
+	serialize = function(self,object)
+		return tostring(object.id)
+	end,
+	deserialize = function(self,str)
+		local id = tonumber(str)
+		local object = self.to
+		if type(object) == "string" then
+			object = model.static[object.."_model"]
+		end
+		return object.objects.get{id=id}
+	end,
+
+	on_save = function(self, this)
+		if not self[this].id then
 			-- SAVE
 			print "Must save first"
-			self.to:save()
+			self[this]:save()
 		end
 	end,
 
