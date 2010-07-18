@@ -254,26 +254,35 @@ model.ForeignKey = Field:new{
 	type	= "ForeignKey",
 	to		= promise.type("*"),
 	promise = function(object, promises)
-		print "PROMISE"
 		local ref
-		local defer = false
-		if type(object) == "string" then
-			if object:sub(#object-6) ~= "_model" then
-				ref = object .. "_model"
+		if type(promises.to) == "string" then
+			if promises.to:sub(#(promises.to)-6) ~= "_model" then
+				ref = promises.to .. "_model"
 			else
-				ref = object
+				ref = promises.to
 			end
 			if model.static[ref] then
-				object = model.static[ref]
+				promises.to = model.static[ref]
 			else
 				return nil
 			end
 		end
+
 		if type(object) ~= "table" then
 			return nil
 		end
-		print(object)
+		if object.super.model_name ~= promises.to.model_name then
+			return nil
+		end
 		return object
+	end,
+
+	on_save = function(self)
+		if not self.to.id then
+			-- SAVE
+			print "Must save first"
+			self.to:save()
+		end
 	end,
 
 	sql = function(self, field)

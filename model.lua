@@ -334,7 +334,7 @@ function Band.on_string(self)
 end
 b = Band{band_name = "lee's band"}
 p = Person{name = "lee",band=b}
-
+print(p.band)
 --~ q = Band.objects.all():order_by{id="+"}()
 --~ for o in q:iter() do
 --~ 	print(o)
