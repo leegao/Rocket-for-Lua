@@ -291,8 +291,6 @@ model.ForeignKey = Field:new{
 
 	on_save = function(self, this)
 		if not self[this].id then
-			-- SAVE
-			print "Must save first"
 			self[this]:save()
 		end
 	end,
