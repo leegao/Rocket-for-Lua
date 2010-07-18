@@ -6,7 +6,7 @@ env = sql()
 
 con = assert (env:connect("test.db"))
 
-model = {}
+model = {static = {}}
 
 function model.Model(self, fields)
 	if not fields.id then fields.id = model.AutoField{pk = true} end
@@ -15,8 +15,6 @@ function model.Model(self, fields)
 	local mt = {}
 
 	table.remove(fields, 1)
-
-
 
 	function mt.__call(self, args)
 		--Construct a new lazy model
@@ -309,6 +307,7 @@ function model.Model(self, fields)
 	rawset(Model, "fields", fields)
 	Model:sync_db()
 
+	model.static[Model.model_name] = Model
 	return Model
 end
 
@@ -319,8 +318,11 @@ require "field"
 Person = model{
 	"Person",
 	name 	= model.CharField{},
+	band	= model.ForeignKey{to = "Band"},
 }
-
+function Person.on_string(self)
+	return "<Person: %s>"%(self.name or self.id or "NaN")
+end
 Band = model{
 	"Band",
 	band_name = model.CharField{max_length = 20},
@@ -330,8 +332,10 @@ Band = model{
 function Band.on_string(self)
 	return "<Band: %s>"%(self.band_name or self.id or "NaN")
 end
+b = Band{band_name = "lee's band"}
+p = Person{name = "lee",band=b}
 
-q = Band.objects.all():order_by{id="+"}()
-for o in q:iter() do
-	print(o)
-end
+--~ q = Band.objects.all():order_by{id="+"}()
+--~ for o in q:iter() do
+--~ 	print(o)
+--~ end

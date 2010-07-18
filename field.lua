@@ -252,7 +252,9 @@ model.CommaSeparatedIntegerField = Field:new{
 
 model.ForeignKey = Field:new{
 	type	= "ForeignKey",
+	to		= promise.type("*"),
 	promise = function(object, promises)
+		print "PROMISE"
 		local ref
 		local defer = false
 		if type(object) == "string" then
@@ -261,6 +263,30 @@ model.ForeignKey = Field:new{
 			else
 				ref = object
 			end
+			if model.static[ref] then
+				object = model.static[ref]
+			else
+				return nil
+			end
 		end
+		if type(object) ~= "table" then
+			return nil
+		end
+		print(object)
+		return object
 	end,
+
+	sql = function(self, field)
+		local sql = self.field_name .. " INTEGER"
+		if self.unique then
+			sql = sql .. " UNIQUE"
+		end
+		if not self.null then
+			sql = sql .. " NOT NULL"
+		end
+		if self.default then
+			sql = sql .. " DEFAULT " .. tostring(self.default)
+		end
+		return sql
+	end
 }
