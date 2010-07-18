@@ -412,8 +412,6 @@ function model.Model(self, fields)
 			end
 		end
 		for field, validator in pairs(fields) do
-			--validator.name = field
-			--rawset(getmetatable(validator).__index, "field_name", field)
 			if not all[field] then all[field] = validator() end
 		end
 
@@ -486,7 +484,6 @@ function model.Model(self, fields)
 				stmt = stmt:format(Model.model_name, table.concat(fieldstack,","), table.concat(objectstack,","))
 			end
 
-			--print(stmt)
 			assert(con:execute(stmt))
 
 			if insert then
@@ -516,7 +513,6 @@ function model.Model(self, fields)
 
 
 	function Model.sync_db(self)
-		--con:execute "CREATE TABLE meta (id INTEGER PRIMARY KEY, data TEXT)"
 		local cur = con:execute(string.format("select * from sqlite_master where tbl_name = \"%s\";", self.model_name))
 		if not cur:fetch() then
 			--Need to setup the model in the database
@@ -531,7 +527,6 @@ function model.Model(self, fields)
 				end
 			end
 			local sql = string.format("CREATE TABLE %s (%s);", self.model_name, table.concat(stack, ", "))
-			--print(sql)
 			assert(con:execute(sql))
 		end
 	end
@@ -690,7 +685,7 @@ function model.Model(self, fields)
 	end
 
 	rawset(Model, "fields", fields)
-
+	Model:sync_db()
 
 	return Model
 end
@@ -712,14 +707,6 @@ function Band.on_string(self)
 	return "<Band: %s>"%(self.band_name or self.id or "NaN")
 end
 
-Band:sync_db()
-Person:sync_db()
-
---print(Band.fields.band_name.super.fields.website.type)
-b = Band{band_name = "basdf"}
-b.website = "omg.com"
-b:save()
-b:delete()
 q = Band.objects.all():order_by{id="+"}()
 for o in q:iter() do
 	print(o)
