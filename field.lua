@@ -249,3 +249,18 @@ model.CommaSeparatedIntegerField = Field:new{
 		return sql
 	end
 }
+
+model.ForeignKey = Field:new{
+	type	= "ForeignKey",
+	promise = function(object, promises)
+		local ref
+		local defer = false
+		if type(object) == "string" then
+			if object:sub(#object-6) ~= "_model" then
+				ref = object .. "_model"
+			else
+				ref = object
+			end
+		end
+	end,
+}
