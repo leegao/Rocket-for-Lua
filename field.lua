@@ -3,6 +3,101 @@ if not model then
 	error "Need to have model initiated before creating fields."
 end
 
+local Field__mt = {}
+
+Field__mt.__index = {
+	null 	= promise.type("boolean", false),
+	default	= promise.type("*"),
+	editable= promise.type("boolean", true),
+	help	= promise.type("string", "Potions Field"),
+	pk		= promise.type("boolean", false),
+	unique	= promise.type("boolean", false),
+	name	= promise.type("string"),
+	type	= "Field",
+}
+
+local Field = {
+	new = function(this, args)
+		local mt = {}
+		function mt.__newindex(self, key, val)
+			self.addons[key] = val
+		end
+		function mt.__call(self, params)
+			local seen = {}
+			local promises = {promise = args.promise, type = args.type}
+
+			for _,positional in ipairs(params) do
+				seen[_] = true
+				--pass
+			end
+
+			for key,var in pairs(params) do
+				if not seen[key] then
+					local _promise = self[key]
+					if _promise then
+						if _promise(var) ~= nil then
+							promises[key] = _promise(var)
+						else
+							error "Wrong Type"
+						end
+					end
+					if key:sub(1, 3) == "on_" or key == "serialize" or key == "deserialize" or name == "sql" then
+						promises[key] = var
+					end
+					seen[key] = true
+				end
+			end
+
+			for name,field in pairs(self.addons) do
+				if not seen[name] then
+					seen[name] = true
+					if type(field) ~= "function" then
+						if field.default then promises[name] = field.default end
+					end
+					if name:sub(1, 3) == "on_" or name == "serialize" or name == "deserialize" or name == "sql" then
+						promises[name] = field
+					end
+				end
+			end
+
+			for name,field in pairs(self.index) do
+				if not seen[name] then
+					seen[name] = true
+					if field.default then promises[name] = field.default end
+				end
+			end
+
+			return promise.field(promises)
+		end
+		function mt.__index(self, key)
+			if key == "addons" then return rawget(self,"addons") end
+			if key == "index" then return getmetatable(this).__index end
+			local tab2 = getmetatable(this).__index
+			local tab1 = rawget(self,"addons")
+			if tab1[key] then return tab1[key] else return tab2[key] end
+		end
+		local field = {new=this.new, addons={}}
+		setmetatable(field, mt)
+		if args.promise then
+			rawset(field, "promise", args.promise)
+		end
+		if args.serialize then
+			rawset(field, "serialize", args.serialize)
+			field.addons.serialize = args.serialize
+		end
+		if args.deserialize then
+			rawset(field, "deserialize", args.deserialize)
+			field.addons.deserialize = args.deserialize
+		end
+		if args.sql then
+			rawset(field, "sql", args.sql)
+			field.addons.sql = args.sql
+		end
+		for k,v in pairs(args) do if k ~= "promise" then field[k] = v end end
+		return field
+	end
+}
+setmetatable(Field, Field__mt)
 
 model.IntegerField = Field:new{
 	type	= "IntegerField",
