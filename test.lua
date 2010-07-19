@@ -40,6 +40,9 @@ Clan = model{
 	clan_name = model.CharField{},
 	tag 	  = model.CharField{null = true}
 }
+function Clan.on_string(self)
+	return self.tag or "[NaN]"
+end
 
 -- Make sure that Clan is created
 assert(Clan, "Cannot create model Clan")
@@ -75,6 +78,7 @@ jack:save()
 q = UserClan.objects.all():where{clan__clan_name = "TGV"}
 
 print(q())
+
 --Cleanup
 p:delete()
 p2:delete()
@@ -82,3 +86,5 @@ TGV:delete()
 lee:delete()
 aj:delete()
 jack:delete()
+
+env:close()

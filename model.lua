@@ -52,6 +52,7 @@ function model.Model(self, fields)
 		end
 
 		function imt.__eq(self, other)
+			--print(self.id, other.id)
 			return self.id == other.id
 		end
 
@@ -163,20 +164,25 @@ function model.Model(self, fields)
 		if self._where then
 
 			sql = sql .. " WHERE"
-			for key, where in pairs(self._where) do
-				sql = sql .. " \"%s\""
-				table.insert(stack, key)
-				if where.exact then
-					sql = sql .. " = %s"
-					table.insert(stack, where.obj)
-				elseif where.flag then
-					sql = sql .. " %s %s"
-					table.insert(stack, where.flag)
-					table.insert(stack, where.obj)
-				else
-					sql = sql .. ' LIKE %s ESCAPE \'\\\''
-					table.insert(stack, where.obj)
+			for key, where_ in pairs(self._where) do
+				sql = sql .. " ("
+				for _,where in ipairs(where_) do
+					sql = sql .. " \"%s\""
+					table.insert(stack, key)
+					if where.exact then
+						sql = sql .. " = %s"
+						table.insert(stack, where.obj)
+					elseif where.flag then
+						sql = sql .. " %s %s"
+						table.insert(stack, where.flag)
+						table.insert(stack, where.obj)
+					else
+						sql = sql .. ' LIKE %s ESCAPE \'\\\''
+						table.insert(stack, where.obj)
+					end
+					sql = sql .. " OR"
 				end
+				sql = sql:sub(1,#sql-3) .. " )"
 				sql = sql .. " AND"
 			end
 			sql = sql:sub(1,#sql-4)
@@ -235,47 +241,59 @@ function model.Model(self, fields)
 			if not self._where then self._where = {} end
 			local where
 			for field,expr in pairs(_args) do
-				where = {}
 				local s = field:split("__")
 				field = s[1]
 				local flags = {select(2, unpack(s))}
 				if Model.fields[field] then
 					local val = Model.fields[field]
+					local exprs
 					if not val(expr) and flags[1] then
 						if model.static[field.."_model"] and not flags[1]:inside{"startswith",'endswith','contains','ge','gt','lt','le'} then
-							local _field = flags[1]
-							flags = {select(2,unpack(flags))}
-							expr = model.static[field.."_model"].objects.get{[_field]=expr}
+							local _field = table.concat(flags,"__")
+							flags = {}
+							local q = model.static[field.."_model"].objects.all():where{[_field]=expr}
+							exprs = q()
+							local _ = exprs[1].id
 						end
 					end
-					if val(expr) then
-						if #flags == 0 then
-							where.exact = true
-							where.obj = (val.serialize or tostring_)(val, expr)
-						else
-							local flag = flags[1]
-							if flag == "startswith" then
-								expr = expr .. "%"
-							elseif flag == "endswith" then
-								expr = "%"..expr
-							elseif flag == "contains" then
-								expr = "%"..expr.."%"
-							elseif flag == "gt" then
-								where.flag = ">"
-							elseif flag == "ge" then
-								where.flag = ">="
-							elseif flag == "lt" then
-								where.flag = "<"
-							elseif flag == "le" then
-								where.flag = "<="
+					if not exprs then exprs = {expr} end
+					if not self._where[field] then self._where[field] = {} end
+					for _,expr in ipairs(exprs) do
+						where = {}
+						--print(expr, TGV, expr.id,TGV.id, val(expr))
+						if val(expr) then
+							if #flags == 0 then
+								where.exact = true
+								where.obj = (val.serialize or tostring_)(val, expr)
+							else
+								local flag = flags[1]
+								if flag == "startswith" then
+									expr = expr .. "%"
+								elseif flag == "endswith" then
+									expr = "%"..expr
+								elseif flag == "contains" then
+									expr = "%"..expr.."%"
+								elseif flag == "gt" then
+									where.flag = ">"
+								elseif flag == "ge" then
+									where.flag = ">="
+								elseif flag == "lt" then
+									where.flag = "<"
+								elseif flag == "le" then
+									where.flag = "<="
+								end
+								where.obj = (val.serialize or tostring)(val, expr)
 							end
-							where.obj = (val.serialize or tostring)(val, expr)
+							table.insert(self._where[field],where)
+						else
+							if exprs then
+								--error("Cannot validate field %s with expr %s"%{field, expr})
+							end
 						end
 
-					else
-						error("Cannot validate field %s with expr %s"%{field, expr})
 					end
 				else
+					where = {}
 					local foreign = field.."_model"
 					local is_foreign = false
 					for f,m in pairs(Model.static.foreign) do
@@ -320,8 +338,9 @@ function model.Model(self, fields)
 					else
 						error("Field or Foreign Key does not exist for %s: %s"%{Model.model_name,field})
 					end
+					self._where[field] = {where}
 				end
-				self._where[field] = where
+
 			end
 			return self
 		end
