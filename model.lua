@@ -151,8 +151,10 @@ function model.Model(self, fields)
 					error("Need a sql() function for model "..self.model_name.. "'s field "..field)
 				end
 			end
-			local sql = string.format("CREATE TABLE %s (%s);", self.model_name, table.concat(stack, ", "))
+			local sql = string.format("CREATE TABLE IF NOT EXISTS %s (%s);", self.model_name, table.concat(stack, ", "))
+			assert(con:execute "BEGIN TRANSACTION")
 			assert(con:execute(sql))
+			assert(con:execute "COMMIT TRANSACTION")
 		end
 	end
 

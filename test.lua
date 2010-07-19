@@ -70,6 +70,8 @@ end
 -- Make sure that UserClan exists
 assert(UserClan, "UserClan Proxy model cannot be created")
 
+Model3 = model{"model3",data = model.CharField{}}
+
 -- Create Proxies and go from there...
 p = UserClan{user=lee,clan=TGV}
 
@@ -94,6 +96,8 @@ q()
 q = User.objects.all():where{userclan__clan = TGV}
 q()
 
+
+
 -- Cleanup
 p:delete()
 p2:delete()
@@ -101,6 +105,7 @@ TGV:delete()
 lee:delete()
 aj:delete()
 jack:delete()
+
 
 sql:close()
 
