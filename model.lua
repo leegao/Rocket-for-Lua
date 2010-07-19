@@ -280,7 +280,6 @@ function model.Model(self, fields)
 					if is_foreign then
 						field = flags[1]
 						local flag = flags[2]
-						--print(foreign, field, flag)
 						local this = model.static[foreign]
 						local val = this.fields[field]
 						if val(expr) then
