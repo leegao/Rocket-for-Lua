@@ -241,6 +241,13 @@ function model.Model(self, fields)
 				local flags = {select(2, unpack(s))}
 				if Model.fields[field] then
 					local val = Model.fields[field]
+					if not val(expr) and flags[1] then
+						if model.static[field.."_model"] and not flags[1]:inside{"startswith",'endswith','contains','ge','gt','lt','le'} then
+							local _field = flags[1]
+							flags = {select(2,unpack(flags))}
+							expr = model.static[field.."_model"].objects.get{[_field]=expr}
+						end
+					end
 					if val(expr) then
 						if #flags == 0 then
 							where.exact = true
