@@ -156,7 +156,12 @@ function model.Model(self, fields)
 	function qmt.__call(self)
 		local sql = self.sql
 		local stack = {self.select, self.table}
+		if self.foreign then
+				sql = "SELECT %s AS id FROM %s"%{self.fk, self.foreign.model_name}
+				stack = {}
+		end
 		if self._where then
+
 			sql = sql .. " WHERE"
 			for key, where in pairs(self._where) do
 				sql = sql .. " \"%s\""
@@ -196,11 +201,22 @@ function model.Model(self, fields)
 		--print(sql%stack)
 		local cur = con:execute(sql%stack)
 		local results = {}
-		local row = cur:fetch({},"a")
-		while row do
-			table.insert(results, Model(row))
-			row = cur:fetch({},"a")
+
+		if not self.foreign then
+			local row = cur:fetch({},"a")
+			while row do
+				table.insert(results, Model(row))
+				row = cur:fetch({},"a")
+			end
+		else
+			local row = cur:fetch({},"a")
+			while row do
+				row.id = tonumber(row.id)
+				table.insert(results, Model.objects.get(row))
+				row = cur:fetch({},"a")
+			end
 		end
+
 		results.iter = list_iter
 		setmetatable(results, {__tostring=function(list) return "{"..(string.rep(", %s",#list)%list):sub(3).."}" end})
 		return results
@@ -253,7 +269,51 @@ function model.Model(self, fields)
 						error("Cannot validate field %s with expr %s"%{field, expr})
 					end
 				else
-					error("Field does not exist: %s"%field)
+					local foreign = field.."_model"
+					local is_foreign = false
+					for f,m in pairs(Model.static.foreign) do
+						if m.model_name:lower() == foreign then
+							foreign = m.model_name
+							is_foreign = f
+						end
+					end
+					if is_foreign then
+						field = flags[1]
+						local flag = flags[2]
+						--print(foreign, field, flag)
+						local this = model.static[foreign]
+						local val = this.fields[field]
+						if val(expr) then
+							self.foreign = this
+							self.fk = is_foreign
+							if #flags == 0 then
+								where.exact = true
+								where.obj = (val.serialize or tostring_)(val, expr)
+							else
+								local flag = flags[1]
+								if flag == "startswith" then
+									expr = expr .. "%"
+								elseif flag == "endswith" then
+									expr = "%"..expr
+								elseif flag == "contains" then
+									expr = "%"..expr.."%"
+								elseif flag == "gt" then
+									where.flag = ">"
+								elseif flag == "ge" then
+									where.flag = ">="
+								elseif flag == "lt" then
+									where.flag = "<"
+								elseif flag == "le" then
+									where.flag = "<="
+								end
+								where.obj = (val.serialize or tostring)(val, expr)
+							end
+						else
+							error("Cannot validate foreign field %s with expr %s"%{field, expr})
+						end
+					else
+						error("Field or Foreign Key does not exist for %s: %s"%{Model.model_name,field})
+					end
 				end
 				self._where[field] = where
 			end
@@ -366,4 +426,9 @@ print(q2())
 q3 = Person.objects.all():where{band = Band.objects.get{band_name = "lee's band"}}
 print(q3())
 
-print(dump(Band.static.foreign))
+--print(dump(Band.static.foreign))
+
+b = Band.objects.get{band_name = "lee's band"}
+
+q4 = Band.objects.all():where{person__name = "lee"}
+print(q4())

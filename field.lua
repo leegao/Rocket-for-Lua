@@ -303,7 +303,6 @@ model.ForeignKey = Field:new{
 		elseif type(object) == "table" then
 			object = object.model_name
 		end
-		print(self.super.model_name)
 		local defer
 		if not model.static[object] then
 			defer = true
