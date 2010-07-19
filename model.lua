@@ -1,10 +1,16 @@
+DEBUG = true
+
 require "luasql.sqlite3"
 require "rocket_utils"
 require "promise"
 sql = luasql.sqlite3()
 
-con = assert (sql:connect("test.db"))
-
+con_ = assert (sql:connect("test.db"))
+local con = {}
+function con:execute(stmt)
+	if DEBUG then print(stmt) end
+	return con_:execute(stmt)
+end
 model = {static = {}, defered = {}}
 
 function model.Model(self, fields)
@@ -132,7 +138,7 @@ function model.Model(self, fields)
 
 
 	function Model.sync_db(self)
-		local cur = con:execute(string.format("select * from sqlite_master where tbl_name = \"%s\";", self.model_name))
+		local cur = con:execute(string.format("SELECT * FROM sqlite_master WHERE tbl_name = \"%s\";", self.model_name))
 		if not cur:fetch() then
 			--Need to setup the model in the database
 			local stack = {}
@@ -146,7 +152,6 @@ function model.Model(self, fields)
 				end
 			end
 			local sql = string.format("CREATE TABLE %s (%s);", self.model_name, table.concat(stack, ", "))
-			print(sql)
 			assert(con:execute(sql))
 		end
 	end

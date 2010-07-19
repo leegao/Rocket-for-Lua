@@ -89,12 +89,12 @@ q = UserClan.objects.all():where{clan__clan_name = "TGV"}
 assert(q, "Queryset cannot be constructed")
 
 -- Make sure that the Queryset can be evaluted
-print(q())
+q()
 
 q = User.objects.all():where{userclan__clan = TGV}
-print(q())
+q()
 
---Cleanup
+-- Cleanup
 p:delete()
 p2:delete()
 TGV:delete()
@@ -103,3 +103,39 @@ aj:delete()
 jack:delete()
 
 sql:close()
+
+-- Generated SQL:
+--[[--
+	>lua -e "io.stdout:setvbuf 'no'" "test.lua"
+	SELECT * FROM sqlite_master WHERE tbl_name = "user_model";
+	SELECT * FROM sqlite_master WHERE tbl_name = "clan_model";
+	SELECT * FROM sqlite_master WHERE tbl_name = "userclan_model";
+	INSERT INTO user_model (username,usgn,password) VALUES ("lee",146,"demo");
+	SELECT id FROM user_model ORDER BY id DESC
+	INSERT INTO clan_model (clan_name,tag) VALUES ("TGV","[TGV]");
+	SELECT id FROM clan_model ORDER BY id DESC
+	INSERT INTO userclan_model (user,clan) VALUES (1,1);
+	SELECT id FROM userclan_model ORDER BY id DESC
+	INSERT INTO user_model (password,username) VALUES ("aj","aj");
+	SELECT id FROM user_model ORDER BY id DESC
+	INSERT INTO userclan_model (user,clan) VALUES (2,1);
+	SELECT id FROM userclan_model ORDER BY id DESC
+	INSERT INTO user_model (password,username) VALUES ("jack","jack");
+	SELECT id FROM user_model ORDER BY id DESC
+	SELECT * FROM clan_model WHERE ( "clan_name" = "TGV" )
+	SELECT * FROM userclan_model WHERE ( "clan" = 1 )
+	SELECT * FROM clan_model WHERE ( "id" = 1 ) LIMIT 1
+	SELECT * FROM user_model WHERE ( "id" = 1 ) LIMIT 1
+	SELECT * FROM clan_model WHERE ( "id" = 1 ) LIMIT 1
+	SELECT * FROM user_model WHERE ( "id" = 2 ) LIMIT 1
+	SELECT user AS id FROM userclan_model WHERE ( "clan" LIKE 1 ESCAPE '\' )
+	SELECT * FROM user_model WHERE ( "id" = 1 ) LIMIT 1
+	SELECT * FROM user_model WHERE ( "id" = 2 ) LIMIT 1
+	DELETE FROM userclan_model WHERE id=1
+	DELETE FROM userclan_model WHERE id=2
+	DELETE FROM clan_model WHERE id=1
+	DELETE FROM user_model WHERE id=1
+	DELETE FROM user_model WHERE id=2
+	DELETE FROM user_model WHERE id=3
+	>Exit code: 0
+--]]--
