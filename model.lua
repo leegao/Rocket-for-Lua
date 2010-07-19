@@ -1,10 +1,9 @@
 require "luasql.sqlite3"
 require "rocket_utils"
 require "promise"
-sql = luasql.sqlite3
-env = sql()
+sql = luasql.sqlite3()
 
-con = assert (env:connect("test.db"))
+con = assert (sql:connect("test.db"))
 
 model = {static = {}, defered = {}}
 

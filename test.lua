@@ -6,9 +6,9 @@ assert(model, "Model namespace does not exist")
 -- Create a sample user model with username, password, and usgn
 User = model{
 	"user", -- Table name, lowercase
-	username = model.CharField{max_length = 10, null = false},
+	username = model.CharField{max_length = 10, null = false, unique = true},
 	password = model.CharField{max_length = 10, null = false},
-	usgn	 = model.IntegerField{null = true, default = 0}
+	usgn	 = model.IntegerField{null = true, unique = true}
 }
 
 -- Make sure that User is created
@@ -37,9 +37,11 @@ assert(lee.usgn == 146, "Object lee's USGN is incorrect")
 -- Create a sample clan model with clan_name and tag fields
 Clan = model{
 	"clan",
-	clan_name = model.CharField{},
+	clan_name = model.CharField{unique = true},
 	tag 	  = model.CharField{null = true}
 }
+
+-- Create a nice looking tostring of Clan
 function Clan.on_string(self)
 	return self.tag or "[NaN]"
 end
@@ -59,11 +61,16 @@ UserClan = model{
 	clan = model.ForeignKey{to = "clan", null = false},
 	user = model.ForeignKey{to = "user", null = false}
 }
+
+-- Create a nice looking tostring method of UserClan
 function UserClan.on_string(self)
 	return "%s%s"%{self.clan.tag or "[No Clan]", self.user.username}
 end
-assert(UserClan)
 
+-- Make sure that UserClan exists
+assert(UserClan, "UserClan Proxy model cannot be created")
+
+-- Create Proxies and go from there...
 p = UserClan{user=lee,clan=TGV}
 
 p:save()
@@ -75,8 +82,16 @@ p2:save()
 jack = User{username = "jack", password = "jack"}
 jack:save()
 
+-- Creates a query-set that finds all UserClan objects where clan.clan_name equals "TGV"
 q = UserClan.objects.all():where{clan__clan_name = "TGV"}
 
+-- Check that the queryset is constructed correctly
+assert(q, "Queryset cannot be constructed")
+
+-- Make sure that the Queryset can be evaluted
+print(q())
+
+q = User.objects.all():where{userclan__clan = TGV}
 print(q())
 
 --Cleanup
@@ -87,4 +102,4 @@ lee:delete()
 aj:delete()
 jack:delete()
 
-env:close()
+sql:close()
